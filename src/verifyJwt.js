@@ -23,20 +23,26 @@ function joseToDer(signature) {
 
   function trim(buf) {
     let i = 0;
-    while (i < buf.length - 1 && buf[i] === 0) i++;
-    return buf.slice(i);
+    while (i < buf.length && buf[i] === 0) i++;
+    buf = buf.slice(i);
+    if (buf[0] & 0x80) {
+      buf = Buffer.concat([Buffer.from([0]), buf]);
+    }
+    return buf;
   }
 
   const rTrim = trim(r);
   const sTrim = trim(s);
 
-  const rDer = Buffer.concat([Buffer.from([0x02, rTrim.length]), rTrim]);
+  const totalLength = 2 + rTrim.length + 2 + sTrim.length;
 
-  const sDer = Buffer.concat([Buffer.from([0x02, sTrim.length]), sTrim]);
-
-  const sequenceLen = rDer.length + sDer.length;
-
-  return Buffer.concat([Buffer.from([0x30, sequenceLen]), rDer, sDer]);
+  return Buffer.concat([
+    Buffer.from([0x30, totalLength]),
+    Buffer.from([0x02, rTrim.length]),
+    rTrim,
+    Buffer.from([0x02, sTrim.length]),
+    sTrim,
+  ]);
 }
 
 app.http("verifyJWT", {
@@ -46,7 +52,7 @@ app.http("verifyJWT", {
     try {
       const { jwt, publicKey, rawBody } = await request.json();
 
-      if (!jwt || !publicKey || !rawBody) {
+      if (!jwt || !publicKey || rawBody === undefined) {
         return {
           status: 400,
           jsonBody: {
@@ -68,6 +74,13 @@ app.http("verifyJWT", {
       // 2. Decode header + payload
       const header = JSON.parse(base64UrlDecode(headerB64).toString());
       const payload = JSON.parse(base64UrlDecode(payloadB64).toString());
+
+      if (header.alg !== "ES256") {
+        return {
+          status: 400,
+          jsonBody: { valid: false, reason: "Unsupported JWT algorithm" },
+        };
+      }
 
       // 3. Verify signature (ES256)
       const signingInput = `${headerB64}.${payloadB64}`;
