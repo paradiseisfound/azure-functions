@@ -17,6 +17,28 @@ function sha256Hex(input) {
   return crypto.createHash("sha256").update(input).digest("hex");
 }
 
+function joseToDer(signature) {
+  const r = signature.slice(0, 32);
+  const s = signature.slice(32);
+
+  function trim(buf) {
+    let i = 0;
+    while (i < buf.length - 1 && buf[i] === 0) i++;
+    return buf.slice(i);
+  }
+
+  const rTrim = trim(r);
+  const sTrim = trim(s);
+
+  const rDer = Buffer.concat([Buffer.from([0x02, rTrim.length]), rTrim]);
+
+  const sDer = Buffer.concat([Buffer.from([0x02, sTrim.length]), sTrim]);
+
+  const sequenceLen = rDer.length + sDer.length;
+
+  return Buffer.concat([Buffer.from([0x30, sequenceLen]), rDer, sDer]);
+}
+
 app.http("verifyJWT", {
   methods: ["POST"],
   authLevel: "function",
@@ -49,7 +71,8 @@ app.http("verifyJWT", {
 
       // 3. Verify signature (ES256)
       const signingInput = `${headerB64}.${payloadB64}`;
-      const signature = base64UrlDecode(signatureB64);
+      const rawSignature = base64UrlDecode(signatureB64);
+      const derSignature = joseToDer(rawSignature);
 
       const keyObject = crypto.createPublicKey({
         key: JSON.parse(Buffer.from(publicKey, "base64").toString("utf8")),
@@ -60,7 +83,7 @@ app.http("verifyJWT", {
         "sha256",
         Buffer.from(signingInput),
         keyObject,
-        signature
+        derSignature
       );
 
       if (!signatureValid) {
