@@ -52,9 +52,8 @@ app.http("verifyJWT", {
       const signature = base64UrlDecode(signatureB64);
 
       const keyObject = crypto.createPublicKey({
-        key: Buffer.from(publicKey, "base64"),
-        format: "der",
-        type: "spki",
+        key: JSON.parse(Buffer.from(publicKey, "base64").toString("utf8")),
+        format: "jwk",
       });
 
       const signatureValid = crypto.verify(
