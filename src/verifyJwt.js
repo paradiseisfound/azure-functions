@@ -74,6 +74,14 @@ app.http("verifyJWT", {
       const rawSignature = base64UrlDecode(signatureB64);
       const derSignature = joseToDer(rawSignature);
 
+      context.log("JWT raw:", jwt);
+      context.log("Signature length:", rawSignature.length);
+      context.log("Signing input:", signingInput);
+      context.log(
+        "Public key JWK:",
+        JSON.parse(Buffer.from(publicKey, "base64").toString("utf8"))
+      );
+
       const keyObject = crypto.createPublicKey({
         key: JSON.parse(Buffer.from(publicKey, "base64").toString("utf8")),
         format: "jwk",
