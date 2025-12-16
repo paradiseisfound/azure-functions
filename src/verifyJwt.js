@@ -13,8 +13,8 @@ function base64UrlDecode(str) {
 /**
  * SHA256 hex digest
  */
-function sha256Hex(input) {
-  return crypto.createHash("sha256").update(input).digest("hex");
+function sha256Hex(buffer) {
+  return crypto.createHash("sha256").update(buffer).digest("hex");
 }
 
 function joseToDer(signature) {
@@ -25,15 +25,12 @@ function joseToDer(signature) {
     let i = 0;
     while (i < buf.length && buf[i] === 0) i++;
     buf = buf.slice(i);
-    if (buf[0] & 0x80) {
-      buf = Buffer.concat([Buffer.from([0]), buf]);
-    }
+    if (buf[0] & 0x80) buf = Buffer.concat([Buffer.from([0]), buf]);
     return buf;
   }
 
   const rTrim = trim(r);
   const sTrim = trim(s);
-
   const totalLength = 2 + rTrim.length + 2 + sTrim.length;
 
   return Buffer.concat([
@@ -82,7 +79,7 @@ app.http("verifyJWT", {
         };
       }
 
-      // 3. Verify signature (ES256)
+      // 3. Verify signature
       const signingInput = `${headerB64}.${payloadB64}`;
       const rawSignature = base64UrlDecode(signatureB64);
       const derSignature = joseToDer(rawSignature);
@@ -106,18 +103,17 @@ app.http("verifyJWT", {
         };
       }
 
-      // 4. Verify body hash
+      // 4. Decode Base64 rawBody and verify hash
+      const rawBodyBuffer = Buffer.from(rawBody, "base64"); // <-- decode Base64
       const expectedHash = payload.request_body_sha256;
-      const actualHash = sha256Hex(rawBody);
+      const actualHash = sha256Hex(rawBodyBuffer);
 
-      context.log("rawBody type:", typeof rawBody);
-      context.log("rawBody length:", rawBody.length);
-      context.log("rawBody (escaped):", JSON.stringify(rawBody));
-      context.log("expectedHash (JWT):", expectedHash);
-      context.log("actualHash (computed):", actualHash);
-      const rawBodyBuffer = Buffer.from(rawBody, "utf8");
-      context.log("rawBody bytes (hex):", rawBodyBuffer.toString("hex"));
-      context.log("rawBody byte length:", rawBodyBuffer.length);
+      context.log(
+        "Decoded rawBody bytes (hex):",
+        rawBodyBuffer.toString("hex")
+      );
+      context.log("Expected hash:", expectedHash);
+      context.log("Actual hash:", actualHash);
 
       if (expectedHash !== actualHash) {
         return {
@@ -126,21 +122,15 @@ app.http("verifyJWT", {
         };
       }
 
-      // ✅ All checks passed
       return {
         status: 200,
-        jsonBody: {
-          valid: true,
-        },
+        jsonBody: { valid: true },
       };
     } catch (err) {
       context.error(err);
       return {
         status: 500,
-        jsonBody: {
-          valid: false,
-          error: "Verification failed",
-        },
+        jsonBody: { valid: false, error: "Verification failed" },
       };
     }
   },
