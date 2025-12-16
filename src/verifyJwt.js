@@ -103,15 +103,21 @@ app.http("verifyJWT", {
         };
       }
 
-      // 4. Decode Base64 rawBody and verify hash
-      const rawBodyBuffer = Buffer.from(rawBody, "base64"); // <-- decode Base64
-      const expectedHash = payload.request_body_sha256;
-      const actualHash = sha256Hex(rawBodyBuffer);
+      // 4. Decode rawBody from Base64
+      const decodedRawBody = Buffer.from(rawBody, "base64").toString("utf8");
 
-      context.log(
-        "Decoded rawBody bytes (hex):",
-        rawBodyBuffer.toString("hex")
+      // 5. Parse JSON and re-serialize with 2-space indentation
+      const normalizedBody = JSON.stringify(
+        JSON.parse(decodedRawBody),
+        null,
+        2
       );
+
+      // 6. Hash and verify
+      const expectedHash = payload.request_body_sha256;
+      const actualHash = sha256Hex(Buffer.from(normalizedBody, "utf8"));
+
+      context.log("Normalized body for hashing:\n", normalizedBody);
       context.log("Expected hash:", expectedHash);
       context.log("Actual hash:", actualHash);
 
