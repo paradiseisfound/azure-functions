@@ -87,14 +87,6 @@ app.http("verifyJWT", {
       const rawSignature = base64UrlDecode(signatureB64);
       const derSignature = joseToDer(rawSignature);
 
-      context.log("JWT raw:", jwt);
-      context.log("Signature length:", rawSignature.length);
-      context.log("Signing input:", signingInput);
-      context.log(
-        "Public key JWK:",
-        JSON.parse(Buffer.from(publicKey, "base64").toString("utf8"))
-      );
-
       const keyObject = crypto.createPublicKey({
         key: JSON.parse(Buffer.from(publicKey, "base64").toString("utf8")),
         format: "jwk",
@@ -117,6 +109,15 @@ app.http("verifyJWT", {
       // 4. Verify body hash
       const expectedHash = payload.request_body_sha256;
       const actualHash = sha256Hex(rawBody);
+
+      context.log("rawBody type:", typeof rawBody);
+      context.log("rawBody length:", rawBody.length);
+      context.log("rawBody (escaped):", JSON.stringify(rawBody));
+      context.log("expectedHash (JWT):", expectedHash);
+      context.log("actualHash (computed):", actualHash);
+      const rawBodyBuffer = Buffer.from(rawBody, "utf8");
+      context.log("rawBody bytes (hex):", rawBodyBuffer.toString("hex"));
+      context.log("rawBody byte length:", rawBodyBuffer.length);
 
       if (expectedHash !== actualHash) {
         return {
