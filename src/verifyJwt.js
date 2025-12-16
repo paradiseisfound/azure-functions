@@ -1,18 +1,12 @@
 import { app } from "@azure/functions";
 import crypto from "crypto";
 
-/**
- * base64url → Buffer
- */
 function base64UrlDecode(str) {
   str = str.replace(/-/g, "+").replace(/_/g, "/");
   while (str.length % 4) str += "=";
   return Buffer.from(str, "base64");
 }
 
-/**
- * SHA256 hex digest
- */
 function sha256Hex(buffer) {
   return crypto.createHash("sha256").update(buffer).digest("hex");
 }
@@ -116,10 +110,6 @@ app.http("verifyJWT", {
       // 6. Hash and verify
       const expectedHash = payload.request_body_sha256;
       const actualHash = sha256Hex(Buffer.from(normalizedBody, "utf8"));
-
-      context.log("Normalized body for hashing:\n", normalizedBody);
-      context.log("Expected hash:", expectedHash);
-      context.log("Actual hash:", actualHash);
 
       if (expectedHash !== actualHash) {
         return {
