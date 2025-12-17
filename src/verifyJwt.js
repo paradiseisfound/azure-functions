@@ -66,6 +66,21 @@ app.http("verifyJWT", {
       const header = JSON.parse(base64UrlDecode(headerB64).toString());
       const payload = JSON.parse(base64UrlDecode(payloadB64).toString());
 
+      // 3. Verify iat
+      if (payload.iat === undefined) {
+        return {
+          status: 400,
+          jsonBody: { valid: false, reason: "Missing 'iat' in JWT payload" },
+        };
+      }
+      const now = Math.floor(Date.now() / 1000);
+      if (payload.iat < now - 300) {
+        return {
+          status: 401,
+          jsonBody: { valid: false, reason: "JWT is too old" },
+        };
+      }
+
       if (header.alg !== "ES256") {
         return {
           status: 400,
@@ -73,7 +88,7 @@ app.http("verifyJWT", {
         };
       }
 
-      // 3. Verify signature
+      // 4. Verify signature
       const signingInput = `${headerB64}.${payloadB64}`;
       const rawSignature = base64UrlDecode(signatureB64);
       const derSignature = joseToDer(rawSignature);
@@ -97,21 +112,17 @@ app.http("verifyJWT", {
         };
       }
 
-      // 4. Decode rawBody from Base64
+      // 5. Decode rawBody from Base64
       const decodedRawBody = Buffer.from(rawBody, "base64").toString("utf8");
 
-      context.log("Decoded Raw Body:", decodedRawBody);
-
-      // 5. Parse JSON and re-serialize with 2-space indentation
+      // 6. Parse JSON and re-serialize with 2-space indentation
       const normalizedBody = JSON.stringify(
         JSON.parse(decodedRawBody),
         null,
         2
       );
 
-      cotext.log("Normalized Body:", normalizedBody);
-
-      // 6. Hash and verify
+      // 7. Hash and verify
       const expectedHash = payload.request_body_sha256;
       const actualHash = sha256Hex(Buffer.from(normalizedBody, "utf8"));
 
