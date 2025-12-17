@@ -100,12 +100,16 @@ app.http("verifyJWT", {
       // 4. Decode rawBody from Base64
       const decodedRawBody = Buffer.from(rawBody, "base64").toString("utf8");
 
+      console.log("Decoded Raw Body:", decodedRawBody);
+
       // 5. Parse JSON and re-serialize with 2-space indentation
       const normalizedBody = JSON.stringify(
         JSON.parse(decodedRawBody),
         null,
         2
       );
+
+      console.log("Normalized Body:", normalizedBody);
 
       // 6. Hash and verify
       const expectedHash = payload.request_body_sha256;
